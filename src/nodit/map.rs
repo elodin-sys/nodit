@@ -3,10 +3,10 @@
 use alloc::vec::Vec;
 use core::marker::PhantomData;
 
+use btree_monstrousity::BTreeMap;
 use btree_monstrousity::btree_map::{
 	IntoIter as BTreeMapIntoIter, SearchBoundCustom,
 };
-use btree_monstrousity::BTreeMap;
 use itertools::Itertools;
 
 use crate::utils::{
@@ -1391,6 +1391,13 @@ impl<I, K, V> NoditMap<I, K, V> {
 	pub fn last_key_value(&self) -> Option<(&K, &V)> {
 		self.inner.last_key_value()
 	}
+
+	/// TODO
+	pub fn last_entry(
+		&mut self,
+	) -> Option<btree_monstrousity::btree_map::OccupiedEntry<'_, K, V>> {
+		self.inner.last_entry()
+	}
 }
 
 // Trait Impls ==========================
@@ -1523,7 +1530,7 @@ mod tests {
 
 	use super::*;
 	use crate::interval::{ee, ei, ie, ii, iu, ue, ui, uu};
-	use crate::utils::{config, contains_point, Config, CutResult};
+	use crate::utils::{Config, CutResult, config, contains_point};
 
 	//only every other number to allow mathematical_overlapping_definition
 	//to test between bounds in finite using smaller intervalled finite
@@ -1570,18 +1577,13 @@ mod tests {
 			Err(OverlapError { value: true }),
 			basic_slice(),
 		);
-		assert_insert_strict(
-			basic(),
+		assert_insert_strict(basic(), (ei(4, 5), true), Ok(()), [
+			(ui(4), false),
 			(ei(4, 5), true),
-			Ok(()),
-			[
-				(ui(4), false),
-				(ei(4, 5), true),
-				(ee(5, 7), true),
-				(ii(7, 7), false),
-				(ie(14, 16), true),
-			],
-		);
+			(ee(5, 7), true),
+			(ii(7, 7), false),
+			(ie(14, 16), true),
+		]);
 	}
 	fn assert_insert_strict<const N: usize>(
 		mut before: NoditMap<i8, Interval<i8>, bool>,
@@ -1716,17 +1718,12 @@ mod tests {
 
 	#[test]
 	fn cut_tests() {
-		assert_cut(
-			basic(),
-			ii(50, 60),
-			[],
-			[
-				(ui(4), false),
-				(ee(5, 7), true),
-				(ii(7, 7), false),
-				(ie(14, 16), true),
-			],
-		);
+		assert_cut(basic(), ii(50, 60), [], [
+			(ui(4), false),
+			(ee(5, 7), true),
+			(ii(7, 7), false),
+			(ie(14, 16), true),
+		]);
 		assert_cut(
 			basic(),
 			uu(),
@@ -1738,12 +1735,10 @@ mod tests {
 			],
 			[],
 		);
-		assert_cut(
-			basic(),
-			ui(6),
-			[(ui(4), false), (ei(5, 6), true)],
-			[(ii(7, 7), false), (ie(14, 16), true)],
-		);
+		assert_cut(basic(), ui(6), [(ui(4), false), (ei(5, 6), true)], [
+			(ii(7, 7), false),
+			(ie(14, 16), true),
+		]);
 		assert_cut(
 			basic(),
 			iu(6),
@@ -1766,11 +1761,11 @@ mod tests {
 		assert_gaps_untrimmed(basic(), ii(50, 60), [iu(16)]);
 		assert_gaps_untrimmed(basic(), iu(50), [iu(16)]);
 		assert_gaps_untrimmed(basic(), ee(3, 16), [ei(4, 5), ee(7, 14)]);
-		assert_gaps_untrimmed(
-			basic(),
-			ei(3, 16),
-			[ei(4, 5), ee(7, 14), iu(16)],
-		);
+		assert_gaps_untrimmed(basic(), ei(3, 16), [
+			ei(4, 5),
+			ee(7, 14),
+			iu(16),
+		]);
 		assert_gaps_untrimmed(basic(), ue(5), []);
 		assert_gaps_untrimmed(basic(), ui(3), []);
 		assert_gaps_untrimmed(basic(), ii(5, 5), [ii(5, 5)]);
@@ -1778,11 +1773,11 @@ mod tests {
 		assert_gaps_untrimmed(basic(), ii(7, 7), []);
 		assert_gaps_untrimmed(basic(), ii(8, 8), [ii(8, 13)]);
 
-		assert_gaps_untrimmed(
-			basic(),
-			ii(i8::MIN, i8::MAX),
-			[ei(4, 5), ee(7, 14), ii(16, i8::MAX)],
-		);
+		assert_gaps_untrimmed(basic(), ii(i8::MIN, i8::MAX), [
+			ei(4, 5),
+			ee(7, 14),
+			ii(16, i8::MAX),
+		]);
 		assert_eq!(
 			NoditMap::from_slice_strict([(ii(i8::MIN, i8::MAX), false)])
 				.unwrap()
@@ -1804,11 +1799,11 @@ mod tests {
 		assert_gaps_trimmed(basic(), ii(50, 60), [ii(50, 60)]);
 		assert_gaps_trimmed(basic(), iu(50), [iu(50)]);
 		assert_gaps_trimmed(basic(), ee(3, 16), [ei(4, 5), ee(7, 14)]);
-		assert_gaps_trimmed(
-			basic(),
-			ei(3, 16),
-			[ei(4, 5), ee(7, 14), ii(16, 16)],
-		);
+		assert_gaps_trimmed(basic(), ei(3, 16), [
+			ei(4, 5),
+			ee(7, 14),
+			ii(16, 16),
+		]);
 		assert_gaps_trimmed(basic(), ue(5), []);
 		assert_gaps_trimmed(basic(), ui(3), []);
 		assert_gaps_trimmed(basic(), ii(5, 5), [ii(5, 5)]);
@@ -1816,11 +1811,11 @@ mod tests {
 		assert_gaps_trimmed(basic(), ii(7, 7), []);
 		assert_gaps_trimmed(basic(), ii(8, 8), [ii(8, 8)]);
 
-		assert_gaps_trimmed(
-			basic(),
-			ii(i8::MIN, i8::MAX),
-			[ei(4, 5), ee(7, 14), ii(16, i8::MAX)],
-		);
+		assert_gaps_trimmed(basic(), ii(i8::MIN, i8::MAX), [
+			ei(4, 5),
+			ee(7, 14),
+			ii(16, i8::MAX),
+		]);
 		assert_eq!(
 			NoditMap::from_slice_strict([(ii(i8::MIN, i8::MAX), false)])
 				.unwrap()
@@ -1953,17 +1948,12 @@ mod tests {
 
 	#[test]
 	fn insert_merge_overlapping_tests() {
-		assert_insert_merge_overlapping(
-			basic(),
-			(ii(0, 2), true),
-			ui(4),
-			[
-				(ui(4), true),
-				(ee(5, 7), true),
-				(ii(7, 7), false),
-				(ie(14, 16), true),
-			],
-		);
+		assert_insert_merge_overlapping(basic(), (ii(0, 2), true), ui(4), [
+			(ui(4), true),
+			(ee(5, 7), true),
+			(ii(7, 7), false),
+			(ie(14, 16), true),
+		]);
 		assert_insert_merge_overlapping(
 			basic(),
 			(ie(14, 16), false),
@@ -1992,12 +1982,10 @@ mod tests {
 				(ii(14, 18), true),
 			],
 		);
-		assert_insert_merge_overlapping(
-			basic(),
-			(uu(), false),
+		assert_insert_merge_overlapping(basic(), (uu(), false), uu(), [(
 			uu(),
-			[(uu(), false)],
-		);
+			false,
+		)]);
 	}
 	fn assert_insert_merge_overlapping<const N: usize>(
 		mut before: NoditMap<i8, Interval<i8>, bool>,
